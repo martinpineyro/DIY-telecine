@@ -8,6 +8,7 @@ import multiprocessing
 #from Queue import Queue
 import collections
 import sys
+import pickle
 
 # params for ShiTomasi corner detection
 feature_params = dict( maxCorners = 100,
@@ -105,7 +106,7 @@ def avance_entre_cuadros_consecutivos(vieja, nueva, p0, good_features_mask):
 
 
 def setup(muestras_pixel_por_paso, secuencia, pixels_por_paso):
-
+	print("INICIO SETUP...")
 	capturas = secuencia
 	iteraciones_setup = 0
 
@@ -190,15 +191,25 @@ def solicitar_avance(e, avance, pixels_por_paso, capturas, moda_pixels_por_paso_
 
 			pasos_dados = pasos_dados + 1
 			
-			
-	contador_frame = contador_frame + 1
+	f = open('contador_frame.obj', 'r')
+	contador_frame = pickle.load(f)
+	print(contador_frame)
+	f.close()
+
+	contador_frame = int(contador_frame[0]) + 1
+	
+	f = open('contador_frame.obj', 'w') 
+	pickle.dump([contador_frame], f)
+	f.close()
+
 	print("SE DIERON " + str(pasos_dados) + " PASOS Y AVANZO " + str(avance_efectivo) + " PIXELS")
-	print("contador frame = " + str(contador_frame))
+	print("contador frame en funcion = " + str(contador_frame))
 	return capturas, pixels_por_paso, contador_frame
 
 for x in range(0, 30):
 	ret,frame_big = cap.read()
 	capturas.append(frame_big)
+
 
 e = multiprocessing.Event()
 e.clear()
@@ -208,12 +219,21 @@ p1.join() #esperar que termine el proceso (se detenga)
 
 
 capturas, pixels_por_paso, moda_pixels_por_paso_anterior = setup(muestras_pixel_por_paso, capturas, pixels_por_paso)
-print("---------- SETUP FINALIZADO --------------")
+f = open('contador_frame.obj', 'w') 
+pickle.dump([contador_frame], f)
+f.close()
+
+
 
 
 sys.argv.append(1)#setear variable que indica que es la primer ejecucion del script que extrae frame
 sys.argv.append(capturas)
 sys.argv.append(contador_frame)
+print("contador Frame = " + str(contador_frame))
+execfile("deteccionFrameFuncionSinTh.py")
+
+print("---------- SETUP FINALIZADO --------------")
+
 
 while(True):
 
@@ -223,15 +243,17 @@ while(True):
 	capturas, pixels_por_paso, contador_frame = solicitar_avance(e, 240, pixels_por_paso, capturas, moda_pixels_por_paso_anterior, contador_frame)
 	print("--------- FIN DE AVANCE -----------")
 	cv2.imshow('preview',capturas[-1])
-	execfile("deteccionFrameFuncion.py")
-
-	cv2.waitKey(0)
-
+	
 	sys.argv[1]=0
 	sys.argv[2]= capturas
 	sys.argv[3]= contador_frame
 
 	print("contador Frame = " + str(contador_frame))
+	execfile("deteccionFrameFuncionSinTh.py")
+
+	#cv2.waitKey(0)
+
+
 
 	if cv2.waitKey(20) & 0xFF == 27:
 		break
